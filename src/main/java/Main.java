@@ -1,4 +1,5 @@
 import db.DataBase;
+import db.ReminderService;
 import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 
 import java.io.InputStream;
@@ -18,7 +19,14 @@ public class Main {
         TelegramBotsLongPollingApplication app = new TelegramBotsLongPollingApplication();
         app.registerBot(token, new BaseBot(token));
 
+        ReminderService rm = new ReminderService();
+        rm.start();
+
         System.out.println("Бот запущен");
+
+        Thread.currentThread().join();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(rm::stop));
 
         Thread.currentThread().join();
     }
