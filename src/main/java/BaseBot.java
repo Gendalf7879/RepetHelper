@@ -83,7 +83,7 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
             client.execute(message);
 
         } catch (TelegramApiException e) {
-            e.printStackTrace();
+            System.err.println("Ошибочка в командах: " + e.getMessage());
         }
     }
 
