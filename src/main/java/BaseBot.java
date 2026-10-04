@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
-    private final TelegramClient client;
+    private static TelegramClient client;
     private final DateTimeFormatter DATE_FMT = new DateTimeFormatterBuilder()
             .appendPattern("dd.MM")
             .optionalStart()
@@ -30,6 +30,17 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
 
     public BaseBot(String botToken) {
         this.client = new OkHttpTelegramClient(botToken);
+    }
+
+    public static void send(long chatId, String text) {
+        try{
+            client.execute(SendMessage.builder()
+                    .chatId(chatId)
+                    .text(text)
+                    .build());
+        } catch (TelegramApiException e){
+            System.err.println("Не удалось отправить сообщение: " + e.getMessage());
+        }
     }
 
     @Override
