@@ -1,6 +1,8 @@
 package db;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UserDao {
     public static User findById(long id) {
@@ -40,5 +42,24 @@ public class UserDao {
         } catch (SQLException e) {
             System.out.println("Ошибочка" + e.getMessage());
         }
+    }
+
+    public static List<User> findAll() {
+        List<User> result = new ArrayList<>();
+        String sql ="SELECT id, name, timezone FROM users";
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ResultSet rs = ps.executeQuery()){
+            while(rs.next()){
+                result.add(new User(
+                        rs.getLong("id"),
+                        rs.getString("name"),
+                        rs.getString("timezone")
+                ));
+            }
+
+        } catch (SQLException e){
+            System.out.println("Ошибка при поиске списка всех пользователей: " + e.getMessage());
+        } return result;
     }
 }

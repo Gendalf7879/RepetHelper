@@ -307,7 +307,7 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
                 + ": " + sum + " ₽";
     }
 
-    private String lessInfo (Lesson a, long tutorId) {
+    public static String lessInfo (Lesson a, long tutorId) {
         Student st = StudentDAO.findById(tutorId, a.getStudentID());
         String studentName = st != null ? st.getName() : "(удалён)";
         String studentRate = st != null ? a.getPrice() + " ₽ " : "—";
