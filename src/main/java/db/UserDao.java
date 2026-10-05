@@ -46,14 +46,14 @@ public class UserDao {
 
     public static List<User> findAll() {
         List<User> result = new ArrayList<>();
-        String sql ="SELECT id, name, timezone FROM users";
+        String sql ="SELECT id, username, timezone FROM users";
         try(Connection conn = DataBase.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql);
         ResultSet rs = ps.executeQuery()){
             while(rs.next()){
                 result.add(new User(
                         rs.getLong("id"),
-                        rs.getString("name"),
+                        rs.getString("username"),
                         rs.getString("timezone")
                 ));
             }

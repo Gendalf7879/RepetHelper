@@ -21,12 +21,9 @@ public class Main {
 
         ReminderService rm = new ReminderService();
         rm.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(rm::stop));
 
         System.out.println("Бот запущен");
-
-        Thread.currentThread().join();
-
-        Runtime.getRuntime().addShutdownHook(new Thread(rm::stop));
 
         Thread.currentThread().join();
     }

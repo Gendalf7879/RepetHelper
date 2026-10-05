@@ -315,6 +315,6 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
                 " id = " + a.getId() +
                 " | " + studentName +
                 " | " + studentRate +
-                a.getStatus();
+                " | " + a.getStatus();
     }
 }

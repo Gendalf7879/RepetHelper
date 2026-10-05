@@ -3,15 +3,12 @@ import db.*;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ReminderService {
-    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final DateTimeFormatter FMT_TIME = DateTimeFormatter.ofPattern("HH:mm");
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
@@ -29,8 +26,17 @@ public class ReminderService {
     }
 
     private void checkHourlyReminders(){
+        LocalDateTime time = LocalDateTime.now().plusMinutes(1);
 
-    }
+        List<Lesson> lessons = LessonDAO.findUpcomingWithoutReminder(time);
+        for (Lesson l : lessons) {
+            long tutorId = l.getTutorId();
+            String text = "⏰ Через час урок: " + BaseBot.lessInfo(l, tutorId);
+
+            BaseBot.send(tutorId, text);
+            LessonDAO.markReminded(l.getId());
+            }
+        }
 
     private void dailyMorningReport() {
         LocalDate today = LocalDate.now();
@@ -39,7 +45,6 @@ public class ReminderService {
             if (lessonList.isEmpty()) continue;
             StringBuilder sb = new StringBuilder("☀️ Доброе утро! Уроки на сегодня:");
             for (Lesson l : lessonList){
-                Student st = StudentDAO.findById(l.getTutorId(), l.getStudentID());
                 sb.append(BaseBot.lessInfo(l, a.getId()));
             }
             BaseBot.send(a.getId(), sb.toString());

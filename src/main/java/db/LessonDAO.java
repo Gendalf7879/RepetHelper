@@ -172,4 +172,37 @@ public class LessonDAO {
         );
     }
 
+    public static void markReminded(long lessonId){
+        String sql = "UPDATE lessons SET remind_at = NULL WHERE id = ?";
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setLong(1, lessonId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Ошибка при обновлении статуса урока на упомянутый: " + e.getMessage());
+        }
+    }
+
+    public static List<Lesson> findUpcomingWithoutReminder(LocalDateTime time){
+        String sql = """
+                SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at
+                FROM lessons
+                WHERE status = 'PLANNED'
+                AND remind_at IS NOT NULL
+                AND remind_at < ?
+                """;
+        List<Lesson> result = new ArrayList<>();
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, time.format(FMT));
+            try(ResultSet rs = ps.executeQuery()) {
+                while (rs.next()){
+                    result.add(mapRow(rs));
+                }
+            }
+        } catch (SQLException e){
+            System.out.println("Ошибка при поиске уроков для напоминания: " + e.getMessage());
+        } return result;
+    }
+
 }
