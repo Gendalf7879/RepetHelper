@@ -235,4 +235,10 @@ public class LessonDAO {
             return false;
         }
     }
+
+    public static List<Lesson> allComplited(LocalDateTime now){
+        List<Lesson> result = new ArrayList<>();
+        LocalDateTime comp;
+        return result;
+    }
 }

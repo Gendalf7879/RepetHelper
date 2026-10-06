@@ -29,7 +29,7 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     public BaseBot(String botToken) {
-        this.client = new OkHttpTelegramClient(botToken);
+        client = new OkHttpTelegramClient(botToken);
     }
 
     public static void send(long chatId, String text) {
@@ -58,8 +58,8 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
                 User user = UserDao.findById(userId);
                 if (user == null) {
                     UserDao.saveOrUpdate(new User(userId, username, "Moscow"));
-                    answer = "Здравствуйте, я добавил вас в свою базу данных, теперь я умею добавлять запланированные уроки! Напишите /help чтобы увидеть все доступные команды.";
-                } else answer = "C возвращением, " + username + "! Теперь я умею добавлять запланированные уроки! Напишите /help чтобы увидеть все доступные команды.";
+                    answer = "Здравствуйте, я добавил вас в свою базу данных, теперь я умею присылать напоминания! Напишите /help чтобы увидеть все доступные команды.";
+                } else answer = "C возвращением, " + username + "! Теперь я умею присылать напоминания! Напишите /help чтобы увидеть все доступные команды.";
             }
             else if(text.equals("/help")) answer = AllComm.allComm;
             else if (text.startsWith("/addStudent")) answer = handleAddStudent(userId, text);
@@ -75,7 +75,7 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
             else if (text.startsWith("/cancel")) answer = cancelLesson(userId, text);
             else if (text.startsWith("/lesson")) answer = showLessonInfo(userId, text);
             else if(text.startsWith("/earned")) answer = moneyEarned(userId, text);
-            else answer = "Вы написали что то не то, или то, что я пока что не умею, напишите /help чтобы увидеть все доступные команды";
+            else answer = "Вы написали что то не то, или то, что я пока не умею, напишите /help чтобы увидеть все доступные команды";
 
             SendMessage message = SendMessage.builder()
                     .chatId(chatId)
