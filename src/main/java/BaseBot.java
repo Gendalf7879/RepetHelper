@@ -19,14 +19,14 @@ import java.util.List;
 
 public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
     private static TelegramClient client;
-    private final DateTimeFormatter DATE_FMT = new DateTimeFormatterBuilder()
+    private static final DateTimeFormatter DATE_FMT = new DateTimeFormatterBuilder()
             .appendPattern("dd.MM")
             .optionalStart()
             .appendPattern(".yyyy")
             .optionalEnd()
             .parseDefaulting(ChronoField.YEAR, LocalDate.now().getYear())
             .toFormatter();
-    private final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     public BaseBot(String botToken) {
         this.client = new OkHttpTelegramClient(botToken);
@@ -66,6 +66,7 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
             else if (text.startsWith("/delStudent")) answer = handleDelStud(userId, text);
             else if (text.equals("/students")) answer = handleListStudent(userId);
             else if(text.startsWith("/addLesson")) answer = handleAddLesson(userId, text);
+            else if(text.startsWith("/replan")) answer = rePlanLesson(userId, text);
             else if (text.equals("/today")) answer = todayLessons(userId);
             else if(text.equals("/week")) answer = weekLessons(userId);
             else if(text.equals("/lessons")) answer = showLessons(userId);
@@ -305,6 +306,57 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
         double sum = LessonDAO.moneyEarned(tutorId, from, to);
         return "Заработано за " + monthStart.getMonth() + "." + monthStart.getYear()
                 + ": " + sum + " ₽";
+    }
+
+    public static String rePlanLesson(long tutorId, String text) {
+        String[] parts = text.split("\\s+");
+        if (parts.length < 4 || parts.length > 5) return "Формат: /addLesson <id урока> <дата> <время> [минуты]";
+
+        long lessId;
+        try {
+            lessId = Long.parseLong(parts[1]);
+        } catch (NumberFormatException e) {
+            return "id урока должно быть числом";
+        }
+
+        int durationMin = 60;
+        if (parts.length == 5) {
+            try {
+                durationMin = Integer.parseInt(parts[4]);
+            } catch (NumberFormatException e) {
+                return "Длительность должна быть числом";
+            }
+        }
+
+        LocalDate date;
+        String dateToken = parts[2].toLowerCase();
+        switch (dateToken) {
+            case "сегодня" -> date = LocalDate.now();
+            case "завтра" -> date = LocalDate.now().plusDays(1);
+            default -> {
+                try {
+                    date = LocalDate.parse(parts[2], DATE_FMT);
+
+                } catch (DateTimeParseException e) {
+                    return "Дата в формате дд.ММ.гггг, 'завтра' или 'сегодня', время в формате ЧЧ:ММ";
+                }
+            }
+        }
+        LocalTime time;
+        try {
+            time = LocalTime.parse(parts[3], TIME_FMT);
+        } catch (DateTimeParseException e) {
+            return "Время должно быть в формате ЧЧ:ММ, например 18:30";
+        }
+
+        LocalDateTime startAt = LocalDateTime.of(date, time);
+        if (startAt.isBefore(LocalDateTime.now())) {
+            return "Нельзя перенести урок в прошлое";
+        }
+        boolean mark = LessonDAO.replanLesson(lessId, tutorId, startAt, durationMin);
+        if (!mark) return "Урок не найден";
+        else return "Урок с id " + lessId + " перенесён на " + startAt.format(
+                DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
     }
 
     public static String lessInfo (Lesson a, long tutorId) {

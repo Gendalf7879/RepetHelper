@@ -205,4 +205,34 @@ public class LessonDAO {
         } return result;
     }
 
+    public static boolean replanLesson(long lessonId, long tutorId, LocalDateTime startAt, int duration){
+        Lesson old = findById(lessonId, tutorId);
+        if (old == null) return false;
+        Student st = StudentDAO.findById(tutorId, old.getStudentID());
+        if (st == null) return false;
+        double newPrice = st.getRate() * duration / 60.0;
+        String sql = """
+                UPDATE lessons SET
+                start_at = ?,
+                remind_at = ?,
+                status = ?,
+                duration_min = ?,
+                price = ?
+                WHERE tutor_id = ?
+                AND id = ?""";
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1, startAt.format(FMT));
+            ps.setString(2, startAt.minusHours(1).format(FMT));
+            ps.setString(3, LessonsStatus.PLANNED.name());
+            ps.setInt(4, duration);
+            ps.setDouble(5, newPrice);
+            ps.setLong(6, tutorId);
+            ps.setLong(7, lessonId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println("Ошибка при переносе урока" + e.getMessage());
+            return false;
+        }
+    }
 }
