@@ -1,5 +1,7 @@
 package db;
 
+import com.fasterxml.jackson.databind.ext.SqlBlobSerializer;
+
 import java.sql.*;
 import java.sql.Connection;
 import java.time.LocalDate;
@@ -236,9 +238,18 @@ public class LessonDAO {
         }
     }
 
-    public static List<Lesson> allComplited(LocalDateTime now){
-        List<Lesson> result = new ArrayList<>();
-        LocalDateTime comp;
-        return result;
+    public static void completeOverdueLessons(){
+        String sql = """
+                UPDATE lessons
+                SET status = 'DONE'
+                WHERE status = 'PLANNED'
+                AND datetime(start_at, '+' || duration_time || ' minutes') <= datetime('now', 'localtime')
+                """;
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.executeUpdate();
+        } catch (SQLException e){
+            System.out.println("Ошибка при автозавершении урока");
+        }
     }
 }

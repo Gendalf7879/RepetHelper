@@ -18,6 +18,8 @@ public class ReminderService {
         long initialDelay = secondsUntilNextSixAM();
         scheduler.scheduleAtFixedRate(this::dailyMorningReport, initialDelay, 24*60*60, TimeUnit.SECONDS);
 
+        scheduler.scheduleAtFixedRate(LessonDAO::completeOverdueLessons, 0, 1, TimeUnit.MINUTES);
+
         System.out.println("Сервис напоминаний запущен");
     }
 
