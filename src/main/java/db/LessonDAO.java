@@ -1,11 +1,10 @@
 package db;
 
-import com.fasterxml.jackson.databind.ext.SqlBlobSerializer;
-
 import java.sql.*;
 import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +12,7 @@ import java.util.List;
 
 public class LessonDAO {
     private static final DateTimeFormatter FMT =  DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     public static long addLesson(long tutorId, long studentID, LocalDateTime startAt, int durationMin, double price, String status, String note, LocalDateTime remindAt) {
         String sql = "INSERT INTO lessons (tutor_id, student_id, start_at, duration_min, price, status, note, remind_at) " +
                 "VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
@@ -210,27 +210,21 @@ public class LessonDAO {
     public static boolean replanLesson(long lessonId, long tutorId, LocalDateTime startAt, int duration){
         Lesson old = findById(lessonId, tutorId);
         if (old == null) return false;
+        updateStatus(old.getId(), tutorId, LessonsStatus.CANCELLED);
         Student st = StudentDAO.findById(tutorId, old.getStudentID());
         if (st == null) return false;
         double newPrice = st.getRate() * duration / 60.0;
         String sql = """
-                UPDATE lessons SET
-                start_at = ?,
-                remind_at = ?,
-                status = ?,
-                duration_min = ?,
-                price = ?
-                WHERE tutor_id = ?
-                AND id = ?""";
+                INSERT INTO lessons (tutor_id, student_id, start_at, duration_min, price, status, remind_at)
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?)""";
         try(Connection conn = DataBase.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)){
-            ps.setString(1, startAt.format(FMT));
-            ps.setString(2, startAt.minusHours(1).format(FMT));
-            ps.setString(3, LessonsStatus.PLANNED.name());
+            ps.setLong(1, tutorId);
+            ps.setLong(2, st.getId());
+            ps.setString(3, startAt.format(FMT));
             ps.setInt(4, duration);
             ps.setDouble(5, newPrice);
-            ps.setLong(6, tutorId);
-            ps.setLong(7, lessonId);
+            ps.setString(6, startAt.minusHours(1).format(FMT));
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             System.out.println("Ошибка при переносе урока" + e.getMessage());
@@ -251,5 +245,29 @@ public class LessonDAO {
         } catch (SQLException e){
             System.out.println("Ошибка при автозавершении урока");
         }
+    }
+
+    public static boolean addRegularLesson(long tutorId, long studentId, int weekday, LocalTime time, int durationMin) {
+        String sql = """
+                INSERT
+                INTO regular_lessons (tutor_id, student_id, weekday, time, duration_min)
+                VALUES (?, ?, ?, ?, ?)
+                """;
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, tutorId);
+            ps.setLong(2, studentId);
+            ps.setInt(3, weekday);
+            ps.setString(4, time.format(TIME_FMT));
+            ps.setInt(5, durationMin);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e){
+            System.out.println("Ошибка при добавлении регулярного урока: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static void getAllRegularLessons() {
+
     }
 }

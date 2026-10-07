@@ -6,7 +6,7 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class Main {
-    public static void main(String[] args) throws Exception{
+    static void main() throws Exception {
         DataBase.init();
         Properties props = new Properties();
         try (InputStream is = Main.class.getClassLoader()
@@ -16,15 +16,18 @@ public class Main {
 
         String token = props.getProperty("bot.token");
 
-        TelegramBotsLongPollingApplication app = new TelegramBotsLongPollingApplication();
-        app.registerBot(token, new BaseBot(token));
+        try (TelegramBotsLongPollingApplication app = new TelegramBotsLongPollingApplication()) {
+            app.registerBot(token, new BaseBot(token));
 
-        ReminderService rm = new ReminderService();
-        rm.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(rm::stop));
+            ReminderService rm = new ReminderService();
+            rm.start();
+            Runtime.getRuntime().addShutdownHook(new Thread(rm::stop));
 
-        System.out.println("Бот запущен");
+            System.out.println("Бот запущен");
 
-        Thread.currentThread().join();
+            Thread.currentThread().join();
+        } catch (Exception e) {
+            System.out.println("Проблемы при запуске бота: " + e.getMessage());
+        }
     }
 }

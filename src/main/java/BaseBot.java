@@ -1,7 +1,7 @@
 import db.*;
 
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
-import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
+import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -17,7 +17,7 @@ import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
+public class BaseBot implements LongPollingUpdateConsumer {
     private static TelegramClient client;
     private static final DateTimeFormatter DATE_FMT = new DateTimeFormatterBuilder()
             .appendPattern("dd.MM")
@@ -44,47 +44,51 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
     }
 
     @Override
-    public void consume(Update update) {
-        if (!update.hasMessage() || !update.getMessage().hasText()) return;
-        try {
-            long chatId = update.getMessage().getChatId();
-            String text = update.getMessage().getText();
-            var from = update.getMessage().getFrom();
-            long userId = from.getId();
-            String username = from.getUserName() != null ? from.getUserName() : "unknown";
+    public void consume(List<Update> updates) {
+        for (Update update : updates) {
+            if (!update.hasMessage() || !update.getMessage().hasText()) return;
+            try {
+                long chatId = update.getMessage().getChatId();
+                String text = update.getMessage().getText();
+                var from = update.getMessage().getFrom();
+                long userId = from.getId();
+                String username = from.getUserName() != null ? from.getUserName() : "unknown";
 
-            String answer;
-            if (text.equals("/start")) {
-                User user = UserDao.findById(userId);
-                if (user == null) {
-                    UserDao.saveOrUpdate(new User(userId, username, "Moscow"));
-                    answer = "Здравствуйте, я добавил вас в свою базу данных, теперь я умею присылать напоминания! Напишите /help чтобы увидеть все доступные команды.";
-                } else answer = "C возвращением, " + username + "! Теперь я умею присылать напоминания! Напишите /help чтобы увидеть все доступные команды.";
+                String answer;
+                if (text.equals("/start")) {
+                    User user = UserDao.findById(userId);
+                    if (user == null) {
+                        UserDao.saveOrUpdate(new User(userId, username, "Moscow"));
+                        answer = "Здравствуйте, я добавил вас в свою базу данных, теперь я умею присылать напоминания! Напишите /help чтобы увидеть все доступные команды.";
+                    } else
+                        answer = "C возвращением, " + username + "! Теперь я умею присылать напоминания! Напишите /help чтобы увидеть все доступные команды.";
+                } else if (text.equals("/help")) answer = AllComm.allComm;
+                else if (text.startsWith("/addStudent")) answer = handleAddStudent(userId, text);
+                else if (text.startsWith("/delStudent")) answer = handleDelStud(userId, text);
+                else if (text.equals("/students")) answer = handleListStudent(userId);
+                else if (text.startsWith("/addLesson")) answer = handleAddLesson(userId, text);
+                else if (text.startsWith("/regular")) answer = addRegularLesson(userId, text);
+                else if (text.startsWith("/replan")) answer = rePlanLesson(userId, text);
+                else if (text.equals("/today")) answer = todayLessons(userId);
+                else if (text.equals("/week")) answer = weekLessons(userId);
+                else if (text.equals("/lessons")) answer = showLessons(userId);
+                else if (text.startsWith("/plan")) answer = plannedLesson(userId, text);
+                else if (text.startsWith("/done")) answer = doneLesson(userId, text);
+                else if (text.startsWith("/cancel")) answer = cancelLesson(userId, text);
+                else if (text.startsWith("/lesson")) answer = showLessonInfo(userId, text);
+                else if (text.startsWith("/earned")) answer = moneyEarned(userId, text);
+                else
+                    answer = "Вы написали что то не то, или то, что я пока не умею, напишите /help чтобы увидеть все доступные команды";
+
+                SendMessage message = SendMessage.builder()
+                        .chatId(chatId)
+                        .text(answer)
+                        .build();
+                client.execute(message);
+
+            } catch (TelegramApiException e) {
+                System.err.println("Ошибочка в командах: " + e.getMessage());
             }
-            else if(text.equals("/help")) answer = AllComm.allComm;
-            else if (text.startsWith("/addStudent")) answer = handleAddStudent(userId, text);
-            else if (text.startsWith("/delStudent")) answer = handleDelStud(userId, text);
-            else if (text.equals("/students")) answer = handleListStudent(userId);
-            else if(text.startsWith("/addLesson")) answer = handleAddLesson(userId, text);
-            else if(text.startsWith("/replan")) answer = rePlanLesson(userId, text);
-            else if (text.equals("/today")) answer = todayLessons(userId);
-            else if(text.equals("/week")) answer = weekLessons(userId);
-            else if(text.equals("/lessons")) answer = showLessons(userId);
-            else if(text.startsWith("/plan")) answer = plannedLesson(userId, text);
-            else if (text.startsWith("/done")) answer = doneLesson(userId, text);
-            else if (text.startsWith("/cancel")) answer = cancelLesson(userId, text);
-            else if (text.startsWith("/lesson")) answer = showLessonInfo(userId, text);
-            else if(text.startsWith("/earned")) answer = moneyEarned(userId, text);
-            else answer = "Вы написали что то не то, или то, что я пока не умею, напишите /help чтобы увидеть все доступные команды";
-
-            SendMessage message = SendMessage.builder()
-                    .chatId(chatId)
-                    .text(answer)
-                    .build();
-            client.execute(message);
-
-        } catch (TelegramApiException e) {
-            System.err.println("Ошибочка в командах: " + e.getMessage());
         }
     }
 
@@ -357,6 +361,46 @@ public class BaseBot implements LongPollingSingleThreadUpdateConsumer {
         if (!mark) return "Урок не найден";
         else return "Урок с id " + lessId + " перенесён на " + startAt.format(
                 DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+    }
+
+    public static String addRegularLesson(long tutorId, String text){
+        String[] parts = text.split("\\s+");
+        if (parts.length < 4 || parts.length > 5) return "Формат /regular <id ученика> <номер дня недели> <время> [длительность (минуты)]";
+        long studentId;
+        try{
+            studentId = Long.parseLong(parts[1]);
+        } catch (NumberFormatException e){
+            return "Id должно быть числом";
+        }
+        Student st = StudentDAO.findById(tutorId, studentId);
+        if (st == null) return "Ученик с id=" + studentId + " не найден";
+
+        int duration_min = 60;
+        if (parts.length == 5){
+            try{
+                duration_min = Integer.parseInt(parts[4]);
+            } catch (NumberFormatException e) {
+                return "Длительность(минуты) должна быть числом";
+            }
+        }
+        int weekday;
+        try{
+            weekday = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException e) {
+            return "День недели должен быть числом 1–7 (1 = Пн)";
+        }
+        if (weekday < 1 || weekday > 7) {
+            return "День недели должен быть от 1 до 7";
+        }
+        LocalTime time;
+        try{
+        time = LocalTime.parse(parts[3], TIME_FMT);
+        } catch (DateTimeParseException e) {
+            return "Формат времени ЧЧ:ММ, например 18:30";
+        }
+        boolean mark = LessonDAO.addRegularLesson(tutorId, studentId, weekday, time, duration_min);
+        String answer ="Регулярный урок добавлен";
+        return mark ? answer : "Ученик не найден";
     }
 
     public static String lessInfo (Lesson a, long tutorId) {

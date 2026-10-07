@@ -31,7 +31,7 @@ public class UserDao {
                 VALUES (?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     username = excluded.username,
-                    timezone = excluded.timezone 
+                    timezone = excluded.timezone
                 """;
         try (Connection conn = DataBase.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {

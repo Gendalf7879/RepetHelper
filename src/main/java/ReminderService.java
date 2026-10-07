@@ -58,7 +58,7 @@ public class ReminderService {
         LocalDateTime atSixAM = now.toLocalDate().atTime(6,0);
         if(now.isAfter(atSixAM)){
             atSixAM = atSixAM.plusDays(1);
-        }
+    }
         return Duration.between(now, atSixAM).getSeconds();
     }
 }
