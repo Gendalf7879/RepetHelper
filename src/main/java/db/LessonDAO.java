@@ -25,7 +25,7 @@ public class LessonDAO {
             ps.setDouble(5, price);
             ps.setString(6, status);
             ps.setString(7, note);
-            ps.setString(8, remindAt.format(FMT));
+            ps.setString(8, remindAt == null ? null : remindAt.format(FMT));
             ps.executeUpdate();
             try(ResultSet rs = ps.getGeneratedKeys()){
                 if (rs.next()) return rs.getLong(1);
@@ -210,10 +210,10 @@ public class LessonDAO {
     public static boolean replanLesson(long lessonId, long tutorId, LocalDateTime startAt, int duration){
         Lesson old = findById(lessonId, tutorId);
         if (old == null) return false;
-        updateStatus(old.getId(), tutorId, LessonsStatus.CANCELLED);
         Student st = StudentDAO.findById(tutorId, old.getStudentID());
         if (st == null) return false;
         double newPrice = st.getRate() * duration / 60.0;
+        updateStatus(old.getId(), tutorId, LessonsStatus.CANCELLED);
         String sql = """
                 INSERT INTO lessons (tutor_id, student_id, start_at, duration_min, price, status, remind_at)
                 VALUES(?, ?, ?, ?, ?, ?, ?, ?)""";
@@ -237,37 +237,181 @@ public class LessonDAO {
                 UPDATE lessons
                 SET status = 'DONE'
                 WHERE status = 'PLANNED'
-                AND datetime(start_at, '+' || duration_time || ' minutes') <= datetime('now', 'localtime')
+                AND datetime(start_at, '+' || duration_min || ' minutes') <= datetime('now', 'localtime')
                 """;
         try(Connection conn = DataBase.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)){
             ps.executeUpdate();
         } catch (SQLException e){
-            System.out.println("Ошибка при автозавершении урока");
+            System.out.println("Ошибка при автозавершении урока" + e.getMessage());
         }
     }
 
-    public static boolean addRegularLesson(long tutorId, long studentId, int weekday, LocalTime time, int durationMin) {
+    public static long addRegularLesson(long tutorId, long studentId, int weekday, LocalTime time, int durationMin) {
         String sql = """
                 INSERT
                 INTO regular_lessons (tutor_id, student_id, weekday, time, duration_min)
                 VALUES (?, ?, ?, ?, ?)
                 """;
         try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
+        PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setLong(1, tutorId);
             ps.setLong(2, studentId);
             ps.setInt(3, weekday);
             ps.setString(4, time.format(TIME_FMT));
             ps.setInt(5, durationMin);
-            return ps.executeUpdate() > 0;
+            ps.executeUpdate();
+            try(ResultSet rs = ps.getGeneratedKeys()){
+                if(rs.next()) return rs.getLong(1);
+            }
         } catch (SQLException e){
             System.out.println("Ошибка при добавлении регулярного урока: " + e.getMessage());
+        } return -1;
+    }
+
+    public static List<RegularLesson> getAllCurrentRegularLessons() {
+        List<RegularLesson> result = new ArrayList<>();
+        String sql = """
+                SELECT id, tutor_id, student_id, weekday, time, duration_min, active
+                FROM regular_lessons
+                WHERE weekday = ?
+                AND active = 1
+                """;
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            try (ResultSet rs = ps.executeQuery()){
+                while (rs.next()){
+                    String timeStr = rs.getString("time");
+                    LocalTime lc = LocalTime.parse(timeStr, TIME_FMT);
+                    result.add(new RegularLesson(
+                            rs.getLong("id"),
+                            rs.getLong("tutor_id"),
+                            rs.getLong("student_id"),
+                            rs.getInt("weekday"),
+                            rs.getInt("duration_min"),
+                            rs.getInt("active"),
+                            lc
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("Ошибка при получения регулярных уроков сегодня" + e.getMessage());
+        } return result;
+    }
+
+    public static List<RegularLesson> getAllTutorRegularLessons(long tutorId) {
+        List<RegularLesson> result = new ArrayList<>();
+        String sql = """
+                SELECT id, tutor_id, student_id, weekday, time, duration_min, active
+                FROM regular_lessons
+                WHERE tutor_id = ?
+                AND active = 1
+                """;
+        try(Connection conn = DataBase.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setLong(1, tutorId);
+            try (ResultSet rs = ps.executeQuery()){
+                while (rs.next()){
+                    String timeStr = rs.getString("time");
+                    LocalTime lc = LocalTime.parse(timeStr, TIME_FMT);
+                    result.add(new RegularLesson(
+                            rs.getLong("id"),
+                            rs.getLong("tutor_id"),
+                            rs.getLong("student_id"),
+                            rs.getInt("weekday"),
+                            rs.getInt("duration_min"),
+                            rs.getInt("active"),
+                            lc
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("Ошибка при получения регулярных уроков преподавателя" + e.getMessage());
+        } return result;
+    }
+
+    public static boolean setInactiveRegLess(long tutorID, long regLessId) {
+        String sql = """
+                UPDATE regular_lessons
+                SET active = 0
+                WHERE tutor_id = ?
+                AND id = ?
+                """;
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setLong(1, tutorID);
+            ps.setLong(2, regLessId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e){
+            System.out.println("Ошибка при смены статуса регулярного урока" + e.getMessage());
             return false;
         }
     }
 
-    public static void getAllRegularLessons() {
+    public static void addLessonFromRegular(List<RegularLesson> regList){
+        String sql = """
+                INSERT OR IGNORE INTO lessons (tutor_id, student_id, start_at, duration_min, price, status, remind_at)
+                VALUES(?, ?, ?, ?, ?, ?, ?)
+                """;
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+        for (RegularLesson a : regList){
+            Student st = StudentDAO.findById(a.getTutorId(), a.getStudentId());
+            if (st == null) continue;
+            for(int i = 0; i < 14; i++){
+                LocalDate date = today.plusDays(i);
+                if (date.getDayOfWeek().getValue() != a.getWeekday()) continue;
 
+                LocalDateTime startAt = date.atTime(a.getTime());
+                if(startAt.isBefore(now)) continue;
+
+                LocalDateTime remindAt = startAt.minusHours(1);
+
+                try(Connection conn = DataBase.getConnection();
+                    PreparedStatement ps = conn.prepareStatement(sql)){
+                    ps.setLong(1, a.getTutorId());
+                    ps.setLong(2, a.getStudentId());
+                    ps.setString(3, startAt.format(FMT));
+                    ps.setInt(4, a.getDurationMin());
+                    ps.setDouble(5, (st.getRate() * a.getDurationMin()/60));
+                    ps.setString(6, LessonsStatus.PLANNED.name());
+                    ps.setString(7, remindAt.format(FMT));
+                    ps.executeUpdate();
+                } catch (SQLException e){
+                    System.out.println("Ошибка при добавлении урока из списка регулярных" + e.getMessage());
+                }
+            }
+        }
+    }
+
+    public static RegularLesson findRegLessById(long tutorId, long regLessId) {
+        String sql = """
+                SELECT id, tutor_id, student_id, weekday, time, duration_min, active
+                FROM regular_lessons
+                WHERE tutor_id = ?
+                AND id = ?
+                """;
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, tutorId);
+            ps.setLong(2, regLessId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String timeStr = rs.getString("time");
+                    LocalTime lc = LocalTime.parse(timeStr, TIME_FMT);
+                    return new RegularLesson(
+                            rs.getLong("id"),
+                            rs.getLong("tutor_id"),
+                            rs.getLong("student_id"),
+                            rs.getInt("weekday"),
+                            rs.getInt("duration_min"),
+                            rs.getInt("active"),
+                            lc
+                    );
+                }
+            }
+        } catch (SQLException e){
+            System.out.println("Ошибка при поиске регулярного урока по id: " + e.getMessage());
+        } return null;
     }
 }

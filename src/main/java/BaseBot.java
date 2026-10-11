@@ -46,7 +46,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
     @Override
     public void consume(List<Update> updates) {
         for (Update update : updates) {
-            if (!update.hasMessage() || !update.getMessage().hasText()) return;
+            if (!update.hasMessage() || !update.getMessage().hasText()) continue;
             try {
                 long chatId = update.getMessage().getChatId();
                 String text = update.getMessage().getText();
@@ -68,6 +68,8 @@ public class BaseBot implements LongPollingUpdateConsumer {
                 else if (text.equals("/students")) answer = handleListStudent(userId);
                 else if (text.startsWith("/addLesson")) answer = handleAddLesson(userId, text);
                 else if (text.startsWith("/regular")) answer = addRegularLesson(userId, text);
+                else if (text.equals("/regLessons")) answer = showAllRegLess(userId);
+                else if(text.startsWith("/delRegular")) answer = delRegularLesson(userId, text);
                 else if (text.startsWith("/replan")) answer = rePlanLesson(userId, text);
                 else if (text.equals("/today")) answer = todayLessons(userId);
                 else if (text.equals("/week")) answer = weekLessons(userId);
@@ -77,8 +79,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
                 else if (text.startsWith("/cancel")) answer = cancelLesson(userId, text);
                 else if (text.startsWith("/lesson")) answer = showLessonInfo(userId, text);
                 else if (text.startsWith("/earned")) answer = moneyEarned(userId, text);
-                else
-                    answer = "Вы написали что то не то, или то, что я пока не умею, напишите /help чтобы увидеть все доступные команды";
+                else answer = "Вы написали что то не то, или то, что я пока не умею, напишите /help чтобы увидеть все доступные команды";
 
                 SendMessage message = SendMessage.builder()
                         .chatId(chatId)
@@ -398,9 +399,12 @@ public class BaseBot implements LongPollingUpdateConsumer {
         } catch (DateTimeParseException e) {
             return "Формат времени ЧЧ:ММ, например 18:30";
         }
-        boolean mark = LessonDAO.addRegularLesson(tutorId, studentId, weekday, time, duration_min);
-        String answer ="Регулярный урок добавлен";
-        return mark ? answer : "Ученик не найден";
+        long id = LessonDAO.addRegularLesson(tutorId, studentId, weekday, time, duration_min);
+        if (id == -1) return "Ученик не найден";
+        List<RegularLesson> rg = new ArrayList<>();
+        rg.add(LessonDAO.findRegLessById(tutorId, id));
+        LessonDAO.addLessonFromRegular(rg);
+        return "Регулярный урок добавлен";
     }
 
     public static String lessInfo (Lesson a, long tutorId) {
@@ -412,5 +416,33 @@ public class BaseBot implements LongPollingUpdateConsumer {
                 " | " + studentName +
                 " | " + studentRate +
                 " | " + a.getStatus();
+    }
+
+    public static String showAllRegLess(long tutorId) {
+        List<RegularLesson> rl = LessonDAO.getAllTutorRegularLessons(tutorId);
+        if (rl.isEmpty()) return "У вас пока что нет регулярных уроков, добавьте /regular";
+        StringBuilder result = new StringBuilder("Ваши активные регулярные уроки:");
+        for(RegularLesson a : rl) {
+            Student st = StudentDAO.findById(tutorId, a.getStudentId());
+            if (st == null) continue;
+            result.append("\nid = ").append(a.getId())
+                    .append(", день недели: ").append(a.getWeekday())
+                    .append(", время: ").append(a.getTime())
+                    .append(" со студентом: ").append(st.getName());
+
+        } return result.toString();
+    }
+
+    public static String delRegularLesson(long tutorId, String text){
+        String[] parts = text.split("\\s+");
+        if (parts.length != 2) return "Формат: /delRegular <id регулярного урока>";
+        long id;
+        try{
+            id = Long.parseLong(parts[1]);
+        } catch (NumberFormatException e){
+            return "id должно быть числом";
+        }
+        boolean mark = LessonDAO.setInactiveRegLess(tutorId, id);
+        return mark ? "Регулярный урок с id = " + id + " был успешно удалён" : "Урок с таким айди не найден";
     }
 }

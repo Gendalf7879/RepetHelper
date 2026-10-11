@@ -1,5 +1,6 @@
 import db.*;
 
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,6 +20,8 @@ public class ReminderService {
         scheduler.scheduleAtFixedRate(this::dailyMorningReport, initialDelay, 24*60*60, TimeUnit.SECONDS);
 
         scheduler.scheduleAtFixedRate(LessonDAO::completeOverdueLessons, 0, 1, TimeUnit.MINUTES);
+
+        scheduler.scheduleAtFixedRate(this::regularLessAdder, initialDelay, 24*60*60, TimeUnit.SECONDS);
 
         System.out.println("Сервис напоминаний запущен");
     }
@@ -60,5 +63,9 @@ public class ReminderService {
             atSixAM = atSixAM.plusDays(1);
     }
         return Duration.between(now, atSixAM).getSeconds();
+    }
+
+    public void regularLessAdder(){
+        LessonDAO.addLessonFromRegular(LessonDAO.getAllCurrentRegularLessons());
     }
 }
