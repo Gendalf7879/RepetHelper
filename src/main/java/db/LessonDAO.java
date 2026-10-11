@@ -414,4 +414,39 @@ public class LessonDAO {
             System.out.println("Ошибка при поиске регулярного урока по id: " + e.getMessage());
         } return null;
     }
+
+    public static void setLessonNote(long TutorId, long lessonId, String text) {
+        String sql = """
+                UPDATE lessons
+                SET note = ?
+                WHERE tutor_id = ?
+                AND id = ?
+                """;
+        try(Connection conn = DataBase.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setString(1, text);
+            ps.setLong(2, TutorId);
+            ps.setLong(3, lessonId);
+            ps.executeUpdate();
+        }catch (SQLException e) {
+            System.out.println("Ошибка при добавлении заметки к уроку" + e.getMessage());
+        }
+    }
+
+    public static void delLessonNote(long TutorId, long lessonId) {
+        String sql = """
+                UPDATE lessons
+                SET note = NULL
+                WHERE tutor_id = ?
+                AND id = ?
+                """;
+        try(Connection conn = DataBase.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)){
+            ps.setLong(1, TutorId);
+            ps.setLong(2, lessonId);
+            ps.executeUpdate();
+        }catch (SQLException e) {
+            System.out.println("Ошибка при удалении заметки к уроку" + e.getMessage());
+        }
+    }
 }

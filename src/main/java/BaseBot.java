@@ -74,6 +74,8 @@ public class BaseBot implements LongPollingUpdateConsumer {
                 else if (text.equals("/today")) answer = todayLessons(userId);
                 else if (text.equals("/week")) answer = weekLessons(userId);
                 else if (text.equals("/lessons")) answer = showLessons(userId);
+                else if (text.startsWith("/note")) answer = setNote(userId, text);
+                else if (text.startsWith("/delNote")) answer = delNote(userId, text);
                 else if (text.startsWith("/plan")) answer = plannedLesson(userId, text);
                 else if (text.startsWith("/done")) answer = doneLesson(userId, text);
                 else if (text.startsWith("/cancel")) answer = cancelLesson(userId, text);
@@ -444,5 +446,40 @@ public class BaseBot implements LongPollingUpdateConsumer {
         }
         boolean mark = LessonDAO.setInactiveRegLess(tutorId, id);
         return mark ? "Регулярный урок с id = " + id + " был успешно удалён" : "Урок с таким айди не найден";
+    }
+
+    public static String setNote(long tutorId, String text){
+        String[] parts = text.split("\\s+");
+        if(parts.length < 3) return "Формат /note <id урока> <текст>";
+        long lessId;
+        try{
+            lessId = Long.parseLong(parts[1]);
+        } catch (NumberFormatException e) {
+            return "id урока должно быть числом";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 2; i < parts.length - 1; i++) {
+            sb.append(parts[i]).append(" ");
+        }
+
+        Lesson less = LessonDAO.findById(lessId, tutorId);
+        if (less == null) return "Урок с таким id не найден";
+        LessonDAO.setLessonNote(tutorId, lessId, sb.toString());
+        return "Заметка к уроку с id = " + lessId + " была добавлена";
+    }
+
+    public static String delNote(long tutorId, String text) {
+        String[] parts = text.split("\\s+");
+        if(parts.length < 2) return "Формат /delNote <id урока>";
+        long lessId;
+        try{
+            lessId = Long.parseLong(parts[1]);
+        } catch (NumberFormatException e) {
+            return "id урока должно быть числом";
+        }
+        Lesson less = LessonDAO.findById(lessId, tutorId);
+        if (less == null) return "Урок с таким id не найден";
+        LessonDAO.delLessonNote(tutorId, lessId);
+        return "Заметка к уроку с id = " + lessId + " была удалена";
     }
 }
