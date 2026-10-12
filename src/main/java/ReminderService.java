@@ -1,4 +1,7 @@
-import db.*;
+import db.Lesson;
+import db.LessonDAO;
+import db.User;
+import db.UserDao;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -16,11 +19,11 @@ public class ReminderService {
         scheduler.scheduleAtFixedRate(this::checkHourlyReminders, 0, 1, TimeUnit.MINUTES);
 
         long initialDelay = secondsUntilNextSixAM();
-        scheduler.scheduleAtFixedRate(this::dailyMorningReport, initialDelay, 24*60*60, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::dailyMorningReport, initialDelay, 24 * 60 * 60, TimeUnit.SECONDS);
 
         scheduler.scheduleAtFixedRate(LessonDAO::completeOverdueLessons, 0, 1, TimeUnit.MINUTES);
 
-        scheduler.scheduleAtFixedRate(this::regularLessAdder, initialDelay, 24*60*60, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::regularLessAdder, initialDelay, 24 * 60 * 60, TimeUnit.SECONDS);
 
         System.out.println("Сервис напоминаний запущен");
     }
@@ -29,7 +32,7 @@ public class ReminderService {
         scheduler.shutdown();
     }
 
-    private void checkHourlyReminders(){
+    private void checkHourlyReminders() {
         LocalDateTime time = LocalDateTime.now().plusMinutes(1);
 
         List<Lesson> lessons = LessonDAO.findUpcomingWithoutReminder(time);
@@ -39,32 +42,32 @@ public class ReminderService {
 
             BaseBot.send(tutorId, text);
             LessonDAO.markReminded(l.getId());
-            }
         }
+    }
 
     private void dailyMorningReport() {
         LocalDate today = LocalDate.now();
-        for (User a : UserDao.findAll()){
-            List<Lesson> lessonList = (LessonDAO.findByDate(a.getId(), today));
+        for (User a : UserDao.findAll()) {
+            List<Lesson> lessonList = (LessonDAO.findByDate(a.id(), today));
             if (lessonList.isEmpty()) continue;
             StringBuilder sb = new StringBuilder("☀️ Доброе утро! Уроки на сегодня:");
-            for (Lesson l : lessonList){
-                sb.append(BaseBot.lessInfo(l, a.getId()));
+            for (Lesson l : lessonList) {
+                sb.append(BaseBot.lessInfo(l, a.id()));
             }
-            BaseBot.send(a.getId(), sb.toString());
+            BaseBot.send(a.id(), sb.toString());
         }
     }
 
     public long secondsUntilNextSixAM() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime atSixAM = now.toLocalDate().atTime(6,0);
-        if(now.isAfter(atSixAM)){
+        LocalDateTime atSixAM = now.toLocalDate().atTime(6, 0);
+        if (now.isAfter(atSixAM)) {
             atSixAM = atSixAM.plusDays(1);
-    }
+        }
         return Duration.between(now, atSixAM).getSeconds();
     }
 
-    public void regularLessAdder(){
+    public void regularLessAdder() {
         LessonDAO.addLessonFromRegular(LessonDAO.getAllCurrentRegularLessons());
     }
 }

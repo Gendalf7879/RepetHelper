@@ -22,16 +22,16 @@ public class DataBase {
                 )
                 """;
         String createStudents = """
-        CREATE TABLE IF NOT EXISTS students (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            tutor_id    INTEGER NOT NULL,
-            name        TEXT NOT NULL,
-            rate        REAL DEFAULT 0,
-            active      INTEGER DEFAULT 1,
-            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (tutor_id) REFERENCES users(id)
-        )
-        """;
+                CREATE TABLE IF NOT EXISTS students (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tutor_id    INTEGER NOT NULL,
+                    name        TEXT NOT NULL,
+                    rate        REAL DEFAULT 0,
+                    active      INTEGER DEFAULT 1,
+                    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (tutor_id) REFERENCES users(id)
+                )
+                """;
         String createLessons = """
                 CREATE TABLE IF NOT EXISTS lessons (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,8 +61,10 @@ public class DataBase {
                 FOREIGN KEY (tutor_id) REFERENCES users(id),
                 FOREIGN KEY (student_id) REFERENCES students(id)
                 );""";
-        String createUniqueIndexLessons = "CREATE UNIQUE INDEX IF NOT EXISTS idx_lessons_unique " +
-                "ON lessons(tutor_id, student_id, start_at)";
+        String createUniqueIndexLessons = """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_lessons_unique
+                ON lessons(tutor_id, student_id, start_at)
+                """;
 
         try (Connection connection = getConnection();
              Statement statement = connection.createStatement()) {

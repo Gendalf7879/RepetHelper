@@ -1,6 +1,9 @@
 package db;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,7 +23,7 @@ public class UserDao {
                 }
             }
         } catch (SQLException e) {
-            System.out.println("Ошибка " + e.getMessage());
+            System.out.println("Ошибка при поиске пользователя по id: " + e.getMessage());
         }
         return null;
     }
@@ -35,22 +38,22 @@ public class UserDao {
                 """;
         try (Connection conn = DataBase.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, user.getId());
-            ps.setString(2, user.getUsername());
-            ps.setString(3, user.getTimezone());
+            ps.setLong(1, user.id());
+            ps.setString(2, user.username());
+            ps.setString(3, user.timezone());
             ps.executeUpdate();
         } catch (SQLException e) {
-            System.out.println("Ошибочка" + e.getMessage());
+            System.out.println("Ошибка при сохранении(обновлении) пользователя: " + e.getMessage());
         }
     }
 
     public static List<User> findAll() {
         List<User> result = new ArrayList<>();
-        String sql ="SELECT id, username, timezone FROM users";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql);
-        ResultSet rs = ps.executeQuery()){
-            while(rs.next()){
+        String sql = "SELECT id, username, timezone FROM users";
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
                 result.add(new User(
                         rs.getLong("id"),
                         rs.getString("username"),
@@ -58,8 +61,9 @@ public class UserDao {
                 ));
             }
 
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при поиске списка всех пользователей: " + e.getMessage());
-        } return result;
+        }
+        return result;
     }
 }

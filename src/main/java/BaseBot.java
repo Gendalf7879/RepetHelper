@@ -33,12 +33,12 @@ public class BaseBot implements LongPollingUpdateConsumer {
     }
 
     public static void send(long chatId, String text) {
-        try{
+        try {
             client.execute(SendMessage.builder()
                     .chatId(chatId)
                     .text(text)
                     .build());
-        } catch (TelegramApiException e){
+        } catch (TelegramApiException e) {
             System.err.println("Не удалось отправить сообщение: " + e.getMessage());
         }
     }
@@ -69,7 +69,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
                 else if (text.startsWith("/addLesson")) answer = handleAddLesson(userId, text);
                 else if (text.startsWith("/regular")) answer = addRegularLesson(userId, text);
                 else if (text.equals("/regLessons")) answer = showAllRegLess(userId);
-                else if(text.startsWith("/delRegular")) answer = delRegularLesson(userId, text);
+                else if (text.startsWith("/delRegular")) answer = delRegularLesson(userId, text);
                 else if (text.startsWith("/replan")) answer = rePlanLesson(userId, text);
                 else if (text.equals("/today")) answer = todayLessons(userId);
                 else if (text.equals("/week")) answer = weekLessons(userId);
@@ -81,7 +81,8 @@ public class BaseBot implements LongPollingUpdateConsumer {
                 else if (text.startsWith("/cancel")) answer = cancelLesson(userId, text);
                 else if (text.startsWith("/lesson")) answer = showLessonInfo(userId, text);
                 else if (text.startsWith("/earned")) answer = moneyEarned(userId, text);
-                else answer = "Вы написали что то не то, или то, что я пока не умею, напишите /help чтобы увидеть все доступные команды";
+                else
+                    answer = "Вы написали что то не то, или то, что я пока не умею, напишите /help чтобы увидеть все доступные команды";
 
                 SendMessage message = SendMessage.builder()
                         .chatId(chatId)
@@ -99,7 +100,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
     //
     //
 
-    public String handleAddStudent(long tutorId, String text){
+    public String handleAddStudent(long tutorId, String text) {
         String[] strings = text.split("\\s+");
         if (strings.length < 3) return "Формат: /addStudent Фамилия Имя ставка";
         String sRate = strings[strings.length - 1];
@@ -110,8 +111,8 @@ public class BaseBot implements LongPollingUpdateConsumer {
             return "ставка должна быть числом, например 2000";
         }
         StringBuilder sb = new StringBuilder();
-        for (int i = 1; i < strings.length - 1; i++ ){
-            if(i > 1) sb.append(" ");
+        for (int i = 1; i < strings.length - 1; i++) {
+            if (i > 1) sb.append(" ");
             sb.append(strings[i]);
         }
         if (sb.isEmpty()) return "Укажите имя ученика";
@@ -132,16 +133,17 @@ public class BaseBot implements LongPollingUpdateConsumer {
         return ok ? "Ученик удалён" : "Ученик не найден";
     }
 
-    public String handleListStudent(long tutorId){
+    public String handleListStudent(long tutorId) {
         ArrayList<Student> students = StudentDAO.findByTutor(tutorId);
         if (students.isEmpty()) return "У вас пока что нет учеников, /addStudent Фамилия Имя ставка";
 
         StringBuilder sb = new StringBuilder("Ваши ученики:\n");
-        for (Student s : students){
+        for (Student s : students) {
             sb.append(s.getId()).append(". ")
                     .append(s.getName())
                     .append(", ставка: ").append(s.getRate()).append(" ₽\n");
-        } return sb.toString().trim();
+        }
+        return sb.toString().trim();
     }
 
     public String handleAddLesson(long tutorId, String text) {
@@ -185,7 +187,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
         LocalTime time;
         try {
             time = LocalTime.parse(parts[3], TIME_FMT);
-        } catch (DateTimeParseException e){
+        } catch (DateTimeParseException e) {
             return "Время должно быть в формате ЧЧ:ММ, например 18:30";
         }
 
@@ -201,12 +203,12 @@ public class BaseBot implements LongPollingUpdateConsumer {
                 " запланирован. id = " + id;
     }
 
-    public String todayLessons(long tutorId){
+    public String todayLessons(long tutorId) {
         LocalDate date = LocalDate.now();
         List<Lesson> lessonList = LessonDAO.findByDate(tutorId, date);
         if (lessonList.isEmpty()) return "Уроков сегодня нет";
         StringBuilder result = new StringBuilder();
-        for(Lesson a : lessonList){
+        for (Lesson a : lessonList) {
             result.append(lessInfo(a, tutorId));
         }
         return "Уроки сегодня:" + result;
@@ -218,7 +220,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
         List<Lesson> lessonList = LessonDAO.findByRange(tutorId, from, to);
         if (lessonList.isEmpty()) return "Уроков на неделе нет";
         StringBuilder result = new StringBuilder();
-        for(Lesson a : lessonList){
+        for (Lesson a : lessonList) {
             result.append(lessInfo(a, tutorId));
         }
         return "Уроки на неделе:" + result;
@@ -228,7 +230,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
         String[] parts = text.split("\\s+");
         if (parts.length != 2) return "Формат: /plan <id урока>";
         long lessId;
-        try{
+        try {
             lessId = Long.parseLong(parts[1]);
         } catch (NumberFormatException e) {
             return "id должно быть числом";
@@ -242,7 +244,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
         String[] parts = text.split("\\s+");
         if (parts.length != 2) return "Формат: /done <id урока>";
         long lessId;
-        try{
+        try {
             lessId = Long.parseLong(parts[1]);
         } catch (NumberFormatException e) {
             return "id должно быть числом";
@@ -288,7 +290,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
         List<Lesson> l1 = LessonDAO.showLessons(tutorId);
         if (l1.isEmpty()) return "У вас пока нет уроков, добавьте /addLesson";
         StringBuilder result = new StringBuilder();
-        for(Lesson a : l1){
+        for (Lesson a : l1) {
             result.append(lessInfo(a, tutorId));
         }
         return "Все ваши уроки:" + result;
@@ -297,14 +299,14 @@ public class BaseBot implements LongPollingUpdateConsumer {
     public String moneyEarned(long tutorId, String text) {
         LocalDate now = LocalDate.now();
         LocalDate monthStart;
-        if (text.equals("/earned")){
+        if (text.equals("/earned")) {
             monthStart = now.withDayOfMonth(1);
         } else {
             String[] parts = text.split("\\s+");
-            if(parts.length != 2) return "Формат /earned или /earned ММ.гггг";
-            try{
+            if (parts.length != 2) return "Формат /earned или /earned ММ.гггг";
+            try {
                 monthStart = LocalDate.parse("01." + parts[1], DateTimeFormatter.ofPattern("dd.MM.yyyy"));
-            } catch (DateTimeParseException e){
+            } catch (DateTimeParseException e) {
                 return "Месяц в формате ММ.гггг, например 09.2026";
             }
         }
@@ -366,28 +368,29 @@ public class BaseBot implements LongPollingUpdateConsumer {
                 DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
     }
 
-    public static String addRegularLesson(long tutorId, String text){
+    public static String addRegularLesson(long tutorId, String text) {
         String[] parts = text.split("\\s+");
-        if (parts.length < 4 || parts.length > 5) return "Формат /regular <id ученика> <номер дня недели> <время> [длительность (минуты)]";
+        if (parts.length < 4 || parts.length > 5)
+            return "Формат /regular <id ученика> <номер дня недели> <время> [длительность (минуты)]";
         long studentId;
-        try{
+        try {
             studentId = Long.parseLong(parts[1]);
-        } catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
             return "Id должно быть числом";
         }
         Student st = StudentDAO.findById(tutorId, studentId);
         if (st == null) return "Ученик с id=" + studentId + " не найден";
 
         int duration_min = 60;
-        if (parts.length == 5){
-            try{
+        if (parts.length == 5) {
+            try {
                 duration_min = Integer.parseInt(parts[4]);
             } catch (NumberFormatException e) {
                 return "Длительность(минуты) должна быть числом";
             }
         }
         int weekday;
-        try{
+        try {
             weekday = Integer.parseInt(parts[2]);
         } catch (NumberFormatException e) {
             return "День недели должен быть числом 1–7 (1 = Пн)";
@@ -396,8 +399,8 @@ public class BaseBot implements LongPollingUpdateConsumer {
             return "День недели должен быть от 1 до 7";
         }
         LocalTime time;
-        try{
-        time = LocalTime.parse(parts[3], TIME_FMT);
+        try {
+            time = LocalTime.parse(parts[3], TIME_FMT);
         } catch (DateTimeParseException e) {
             return "Формат времени ЧЧ:ММ, например 18:30";
         }
@@ -409,7 +412,7 @@ public class BaseBot implements LongPollingUpdateConsumer {
         return "Регулярный урок добавлен";
     }
 
-    public static String lessInfo (Lesson a, long tutorId) {
+    public static String lessInfo(Lesson a, long tutorId) {
         Student st = StudentDAO.findById(tutorId, a.getStudentID());
         String studentName = st != null ? st.getName() : "(удалён)";
         String studentRate = st != null ? a.getPrice() + " ₽ " : "—";
@@ -424,35 +427,36 @@ public class BaseBot implements LongPollingUpdateConsumer {
         List<RegularLesson> rl = LessonDAO.getAllTutorRegularLessons(tutorId);
         if (rl.isEmpty()) return "У вас пока что нет регулярных уроков, добавьте /regular";
         StringBuilder result = new StringBuilder("Ваши активные регулярные уроки:");
-        for(RegularLesson a : rl) {
-            Student st = StudentDAO.findById(tutorId, a.getStudentId());
+        for (RegularLesson a : rl) {
+            Student st = StudentDAO.findById(tutorId, a.studentId());
             if (st == null) continue;
-            result.append("\nid = ").append(a.getId())
-                    .append(", день недели: ").append(a.getWeekday())
-                    .append(", время: ").append(a.getTime())
+            result.append("\nid = ").append(a.id())
+                    .append(", день недели: ").append(a.weekday())
+                    .append(", время: ").append(a.time())
                     .append(" со студентом: ").append(st.getName());
 
-        } return result.toString();
+        }
+        return result.toString();
     }
 
-    public static String delRegularLesson(long tutorId, String text){
+    public static String delRegularLesson(long tutorId, String text) {
         String[] parts = text.split("\\s+");
         if (parts.length != 2) return "Формат: /delRegular <id регулярного урока>";
         long id;
-        try{
+        try {
             id = Long.parseLong(parts[1]);
-        } catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
             return "id должно быть числом";
         }
         boolean mark = LessonDAO.setInactiveRegLess(tutorId, id);
         return mark ? "Регулярный урок с id = " + id + " был успешно удалён" : "Урок с таким айди не найден";
     }
 
-    public static String setNote(long tutorId, String text){
+    public static String setNote(long tutorId, String text) {
         String[] parts = text.split("\\s+");
-        if(parts.length < 3) return "Формат /note <id урока> <текст>";
+        if (parts.length < 3) return "Формат /note <id урока> <текст>";
         long lessId;
-        try{
+        try {
             lessId = Long.parseLong(parts[1]);
         } catch (NumberFormatException e) {
             return "id урока должно быть числом";
@@ -470,9 +474,9 @@ public class BaseBot implements LongPollingUpdateConsumer {
 
     public static String delNote(long tutorId, String text) {
         String[] parts = text.split("\\s+");
-        if(parts.length < 2) return "Формат /delNote <id урока>";
+        if (parts.length < 2) return "Формат /delNote <id урока>";
         long lessId;
-        try{
+        try {
             lessId = Long.parseLong(parts[1]);
         } catch (NumberFormatException e) {
             return "id урока должно быть числом";

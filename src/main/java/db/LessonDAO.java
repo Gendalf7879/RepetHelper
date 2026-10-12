@@ -1,7 +1,6 @@
 package db;
 
 import java.sql.*;
-import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -11,13 +10,14 @@ import java.util.List;
 
 
 public class LessonDAO {
-    private static final DateTimeFormatter FMT =  DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+
     public static long addLesson(long tutorId, long studentID, LocalDateTime startAt, int durationMin, double price, String status, String note, LocalDateTime remindAt) {
         String sql = "INSERT INTO lessons (tutor_id, student_id, start_at, duration_min, price, status, note, remind_at) " +
                 "VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setLong(1, tutorId);
             ps.setLong(2, studentID);
             ps.setString(3, startAt.format(FMT));
@@ -27,29 +27,36 @@ public class LessonDAO {
             ps.setString(7, note);
             ps.setString(8, remindAt == null ? null : remindAt.format(FMT));
             ps.executeUpdate();
-            try(ResultSet rs = ps.getGeneratedKeys()){
+            try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) return rs.getLong(1);
             }
 
         } catch (SQLException e) {
             System.out.println("Ошибка при добавлении урока" + e.getMessage());
-        } return -1;
+        }
+        return -1;
     }
 
     public static Lesson findById(long lessonId, long tutorId) {
-        String sql = "SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at FROM lessons WHERE id = ? AND tutor_id = ?";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
+        String sql = """
+                SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at
+                FROM lessons
+                WHERE id = ?
+                AND tutor_id = ?
+                """;
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, lessonId);
             ps.setLong(2, tutorId);
-            try(ResultSet rs = ps.executeQuery()){
-                if(rs.next()) {
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
                     return mapRow(rs);
                 }
             }
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при попытке найти урок по айди: " + e.getMessage());
-        }return null;
+        }
+        return null;
     }
 
     public static List<Lesson> findByDate(long tutorId, LocalDate date) {
@@ -58,62 +65,73 @@ public class LessonDAO {
         String fromStr = from.format(FMT);
         String toStr = to.format(FMT);
         List<Lesson> result = new ArrayList<>();
-        String sql = "SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at " +
-                "FROM lessons " +
-                "WHERE tutor_id = ? " +
-                "AND start_at >= ? " +
-                "AND start_at < ? " +
-                "ORDER BY start_at";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
+        String sql = """
+                SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at
+                FROM lessons
+                WHERE tutor_id = ?
+                AND start_at >= ?
+                AND start_at < ?
+                ORDER BY start_at
+                """;
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, tutorId);
             ps.setString(2, fromStr);
             ps.setString(3, toStr);
-            try(ResultSet rs = ps.executeQuery()){
-                while (rs.next()){
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
                     result.add(mapRow(rs));
                 }
             }
         } catch (SQLException e) {
             System.out.println("Ошибка при поиске уроков в определённый день: " + e.getMessage());
-        } return result;
+        }
+        return result;
     }
 
-    public static List<Lesson> findByRange(long tutorId, LocalDateTime from, LocalDateTime to){
+    public static List<Lesson> findByRange(long tutorId, LocalDateTime from, LocalDateTime to) {
         if (from.isAfter(to)) return List.of();
         List<Lesson> result = new ArrayList<>();
         String fromStr = from.format(FMT);
         String toStr = to.format(FMT);
-        String sql = "SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at " +
-                "FROM lessons " +
-                "WHERE tutor_id = ? " +
-                "AND start_at >= ? " +
-                "AND start_at < ? " +
-                "ORDER BY start_at";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
+        String sql = """
+                SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at
+                FROM lessons
+                WHERE tutor_id = ?
+                AND start_at >= ?
+                AND start_at < ?
+                ORDER BY start_at
+                """;
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, tutorId);
             ps.setString(2, fromStr);
             ps.setString(3, toStr);
-            try(ResultSet rs = ps.executeQuery()){
-                while (rs.next()){
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
                     result.add(mapRow(rs));
                 }
             }
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при попытке найти урок по периоду: " + e.getMessage());
-        }return result;
+        }
+        return result;
     }
 
-    public static boolean updateStatus (long id, long tutorId, LessonsStatus status) {
-        String sql = "UPDATE lessons SET status = ? WHERE id = ? AND tutor_id = ?";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
+    public static boolean updateStatus(long id, long tutorId, LessonsStatus status) {
+        String sql = """
+                UPDATE lessons
+                SET status = ?
+                WHERE id = ?
+                AND tutor_id = ?
+                """;
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, status.name());
             ps.setLong(2, id);
             ps.setLong(3, tutorId);
             return ps.executeUpdate() > 0;
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при попытке обновления статуса урока: " + e.getMessage());
             return false;
         }
@@ -121,13 +139,13 @@ public class LessonDAO {
 
     public static double moneyEarned(long tutorId, LocalDateTime from, LocalDateTime to) {
         String sql = """
-            SELECT COALESCE(SUM(price), 0) AS total
-            FROM lessons
-            WHERE tutor_id = ?
-              AND status = 'DONE'
-              AND start_at >= ?
-              AND start_at <  ?
-            """;
+                SELECT COALESCE(SUM(price), 0) AS total
+                FROM lessons
+                WHERE tutor_id = ?
+                AND status = 'DONE'
+                AND start_at >= ?
+                AND start_at <  ?
+                """;
         try (Connection conn = DataBase.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, tutorId);
@@ -142,22 +160,26 @@ public class LessonDAO {
         return 0;
     }
 
-    public static List<Lesson> showLessons (long tutorId){
+    public static List<Lesson> showLessons(long tutorId) {
         List<Lesson> result = new ArrayList<>();
-        String sql = "SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at FROM lessons " +
-                "WHERE tutor_id = ? " +
-                "ORDER BY start_at";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
+        String sql = """
+                SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at
+                FROM lessons
+                WHERE tutor_id = ?
+                ORDER BY start_at
+                """;
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, tutorId);
-            try(ResultSet rs = ps.executeQuery()){
-                while (rs.next()){
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
                     result.add(mapRow(rs));
                 }
             }
         } catch (SQLException e) {
             System.out.println("Ошибка при попытке просмотра списка уроков");
-        } return result;
+        }
+        return result;
     }
 
     private static Lesson mapRow(ResultSet rs) throws SQLException {
@@ -174,10 +196,10 @@ public class LessonDAO {
         );
     }
 
-    public static void markReminded(long lessonId){
+    public static void markReminded(long lessonId) {
         String sql = "UPDATE lessons SET remind_at = NULL WHERE id = ?";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, lessonId);
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -185,7 +207,7 @@ public class LessonDAO {
         }
     }
 
-    public static List<Lesson> findUpcomingWithoutReminder(LocalDateTime time){
+    public static List<Lesson> findUpcomingWithoutReminder(LocalDateTime time) {
         String sql = """
                 SELECT id, tutor_id, student_id, start_at, duration_min, price, status, note, remind_at
                 FROM lessons
@@ -194,20 +216,21 @@ public class LessonDAO {
                 AND remind_at < ?
                 """;
         List<Lesson> result = new ArrayList<>();
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, time.format(FMT));
-            try(ResultSet rs = ps.executeQuery()) {
-                while (rs.next()){
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
                     result.add(mapRow(rs));
                 }
             }
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при поиске уроков для напоминания: " + e.getMessage());
-        } return result;
+        }
+        return result;
     }
 
-    public static boolean replanLesson(long lessonId, long tutorId, LocalDateTime startAt, int duration){
+    public static boolean replanLesson(long lessonId, long tutorId, LocalDateTime startAt, int duration) {
         Lesson old = findById(lessonId, tutorId);
         if (old == null) return false;
         Student st = StudentDAO.findById(tutorId, old.getStudentID());
@@ -217,8 +240,8 @@ public class LessonDAO {
         String sql = """
                 INSERT INTO lessons (tutor_id, student_id, start_at, duration_min, price, status, remind_at)
                 VALUES(?, ?, ?, ?, ?, ?, ?, ?)""";
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, tutorId);
             ps.setLong(2, st.getId());
             ps.setString(3, startAt.format(FMT));
@@ -232,17 +255,17 @@ public class LessonDAO {
         }
     }
 
-    public static void completeOverdueLessons(){
+    public static void completeOverdueLessons() {
         String sql = """
                 UPDATE lessons
                 SET status = 'DONE'
                 WHERE status = 'PLANNED'
                 AND datetime(start_at, '+' || duration_min || ' minutes') <= datetime('now', 'localtime')
                 """;
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.executeUpdate();
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при автозавершении урока" + e.getMessage());
         }
     }
@@ -253,20 +276,21 @@ public class LessonDAO {
                 INTO regular_lessons (tutor_id, student_id, weekday, time, duration_min)
                 VALUES (?, ?, ?, ?, ?)
                 """;
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setLong(1, tutorId);
             ps.setLong(2, studentId);
             ps.setInt(3, weekday);
             ps.setString(4, time.format(TIME_FMT));
             ps.setInt(5, durationMin);
             ps.executeUpdate();
-            try(ResultSet rs = ps.getGeneratedKeys()){
-                if(rs.next()) return rs.getLong(1);
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) return rs.getLong(1);
             }
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при добавлении регулярного урока: " + e.getMessage());
-        } return -1;
+        }
+        return -1;
     }
 
     public static List<RegularLesson> getAllCurrentRegularLessons() {
@@ -277,10 +301,10 @@ public class LessonDAO {
                 WHERE weekday = ?
                 AND active = 1
                 """;
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
-            try (ResultSet rs = ps.executeQuery()){
-                while (rs.next()){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
                     String timeStr = rs.getString("time");
                     LocalTime lc = LocalTime.parse(timeStr, TIME_FMT);
                     result.add(new RegularLesson(
@@ -296,7 +320,8 @@ public class LessonDAO {
             }
         } catch (SQLException e) {
             System.out.println("Ошибка при получения регулярных уроков сегодня" + e.getMessage());
-        } return result;
+        }
+        return result;
     }
 
     public static List<RegularLesson> getAllTutorRegularLessons(long tutorId) {
@@ -307,11 +332,11 @@ public class LessonDAO {
                 WHERE tutor_id = ?
                 AND active = 1
                 """;
-        try(Connection conn = DataBase.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, tutorId);
-            try (ResultSet rs = ps.executeQuery()){
-                while (rs.next()){
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
                     String timeStr = rs.getString("time");
                     LocalTime lc = LocalTime.parse(timeStr, TIME_FMT);
                     result.add(new RegularLesson(
@@ -327,7 +352,8 @@ public class LessonDAO {
             }
         } catch (SQLException e) {
             System.out.println("Ошибка при получения регулярных уроков преподавателя" + e.getMessage());
-        } return result;
+        }
+        return result;
     }
 
     public static boolean setInactiveRegLess(long tutorID, long regLessId) {
@@ -337,47 +363,48 @@ public class LessonDAO {
                 WHERE tutor_id = ?
                 AND id = ?
                 """;
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, tutorID);
             ps.setLong(2, regLessId);
             return ps.executeUpdate() > 0;
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при смены статуса регулярного урока" + e.getMessage());
             return false;
         }
     }
 
-    public static void addLessonFromRegular(List<RegularLesson> regList){
+    public static void addLessonFromRegular(List<RegularLesson> regList) {
         String sql = """
-                INSERT OR IGNORE INTO lessons (tutor_id, student_id, start_at, duration_min, price, status, remind_at)
+                INSERT OR IGNORE
+                INTO lessons (tutor_id, student_id, start_at, duration_min, price, status, remind_at)
                 VALUES(?, ?, ?, ?, ?, ?, ?)
                 """;
         LocalDate today = LocalDate.now();
         LocalDateTime now = LocalDateTime.now();
-        for (RegularLesson a : regList){
-            Student st = StudentDAO.findById(a.getTutorId(), a.getStudentId());
+        for (RegularLesson a : regList) {
+            Student st = StudentDAO.findById(a.tutorId(), a.studentId());
             if (st == null) continue;
-            for(int i = 0; i < 14; i++){
+            for (int i = 0; i < 14; i++) {
                 LocalDate date = today.plusDays(i);
-                if (date.getDayOfWeek().getValue() != a.getWeekday()) continue;
+                if (date.getDayOfWeek().getValue() != a.weekday()) continue;
 
-                LocalDateTime startAt = date.atTime(a.getTime());
-                if(startAt.isBefore(now)) continue;
+                LocalDateTime startAt = date.atTime(a.time());
+                if (startAt.isBefore(now)) continue;
 
                 LocalDateTime remindAt = startAt.minusHours(1);
 
-                try(Connection conn = DataBase.getConnection();
-                    PreparedStatement ps = conn.prepareStatement(sql)){
-                    ps.setLong(1, a.getTutorId());
-                    ps.setLong(2, a.getStudentId());
+                try (Connection conn = DataBase.getConnection();
+                     PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setLong(1, a.tutorId());
+                    ps.setLong(2, a.studentId());
                     ps.setString(3, startAt.format(FMT));
-                    ps.setInt(4, a.getDurationMin());
-                    ps.setDouble(5, (st.getRate() * a.getDurationMin()/60));
+                    ps.setInt(4, a.durationMin());
+                    ps.setDouble(5, (st.getRate() * a.durationMin() / 60));
                     ps.setString(6, LessonsStatus.PLANNED.name());
                     ps.setString(7, remindAt.format(FMT));
                     ps.executeUpdate();
-                } catch (SQLException e){
+                } catch (SQLException e) {
                     System.out.println("Ошибка при добавлении урока из списка регулярных" + e.getMessage());
                 }
             }
@@ -410,9 +437,10 @@ public class LessonDAO {
                     );
                 }
             }
-        } catch (SQLException e){
+        } catch (SQLException e) {
             System.out.println("Ошибка при поиске регулярного урока по id: " + e.getMessage());
-        } return null;
+        }
+        return null;
     }
 
     public static void setLessonNote(long TutorId, long lessonId, String text) {
@@ -422,13 +450,13 @@ public class LessonDAO {
                 WHERE tutor_id = ?
                 AND id = ?
                 """;
-        try(Connection conn = DataBase.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, text);
             ps.setLong(2, TutorId);
             ps.setLong(3, lessonId);
             ps.executeUpdate();
-        }catch (SQLException e) {
+        } catch (SQLException e) {
             System.out.println("Ошибка при добавлении заметки к уроку" + e.getMessage());
         }
     }
@@ -440,12 +468,12 @@ public class LessonDAO {
                 WHERE tutor_id = ?
                 AND id = ?
                 """;
-        try(Connection conn = DataBase.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)){
+        try (Connection conn = DataBase.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, TutorId);
             ps.setLong(2, lessonId);
             ps.executeUpdate();
-        }catch (SQLException e) {
+        } catch (SQLException e) {
             System.out.println("Ошибка при удалении заметки к уроку" + e.getMessage());
         }
     }
